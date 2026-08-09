@@ -5,11 +5,13 @@ import { MyDayView } from './components/MyDayView';
 import { GoalsProjectsView } from './components/GoalsProjectsView';
 import { MemoryBrainView } from './components/MemoryBrainView';
 import { WeeklyReviewView } from './components/WeeklyReviewView';
+import { EvolutionView } from './components/EvolutionView';
 import { InterviewWizard } from './components/InterviewWizard';
 import { AIChatDrawer } from './components/AIChatDrawer';
 import { QuickMemoryModal } from './components/QuickMemoryModal';
 
 import {
+  DailyHistoryLog,
   GoalItem,
   MemoryCategory,
   MemoryImportance,
@@ -17,12 +19,14 @@ import {
   ProjectItem,
   TaskItem,
   TaskPriority,
+  TaskStatus,
   UserProfile,
   WeeklyReview,
 } from './types';
 
 import {
   DEFAULT_USER_PROFILE,
+  INITIAL_DAILY_HISTORY,
   INITIAL_GOALS,
   INITIAL_MEMORIES,
   INITIAL_PROJECTS,
@@ -30,7 +34,7 @@ import {
   INITIAL_WEEKLY_REVIEWS,
 } from './utils/initialData';
 
-// Helper to sanitize local storage data and strip legacy "Alex" references
+// Helper to sanitize local storage data and strip legacy seed or "Alex" references
 const getSanitizedLocalStorage = <T,>(key: string, fallback: T): T => {
   try {
     const raw = localStorage.getItem(key);
@@ -50,7 +54,21 @@ const getSanitizedLocalStorage = <T,>(key: string, fallback: T): T => {
         ...p,
         nome: p.nome && !p.nome.includes('Alex') && p.nome !== 'Usuário' ? p.nome : 'Wesley Gomes',
         comoSerChamado: p.comoSerChamado && !p.comoSerChamado.includes('Alex') ? p.comoSerChamado : 'Wesley',
-      };
+      } as unknown as T;
+    }
+
+    if (Array.isArray(parsed)) {
+      // Filter out legacy pre-seeded mock items
+      const isLegacySeedId = (id: string) => /^(task|goal|proj|mem|review)-\d+$/.test(id);
+      const filtered = parsed.filter((item: any) => {
+        if (!item) return false;
+        if (item.id && isLegacySeedId(String(item.id))) return false;
+        if (item.titulo && (item.titulo.includes('energia elétrica') || item.titulo.includes('Caminhada matinal') || item.titulo.includes('Perfil do Usuário'))) return false;
+        if (item.objetivo && item.objetivo.includes('Execução Diária Sem Pendências')) return false;
+        if (item.nome && item.nome.includes('Organização Financeira')) return false;
+        return true;
+      });
+      return filtered as unknown as T;
     }
 
     return parsed;
@@ -60,7 +78,7 @@ const getSanitizedLocalStorage = <T,>(key: string, fallback: T): T => {
 };
 
 export default function App() {
-  // Local Storage State Persistent Hydration with automatic Alex removal sanitization
+  // Local Storage State Persistent Hydration with automatic sanitization
   const [profile, setProfile] = useState<UserProfile>(() =>
     getSanitizedLocalStorage<UserProfile>('sb_profile', DEFAULT_USER_PROFILE)
   );
@@ -85,13 +103,58 @@ export default function App() {
     getSanitizedLocalStorage<WeeklyReview[]>('sb_reviews', INITIAL_WEEKLY_REVIEWS)
   );
 
-  // Auto-clean any legacy Alex data stored in localStorage on mount
+  const [dailyHistory, setDailyHistory] = useState<DailyHistoryLog[]>(() =>
+    getSanitizedLocalStorage<DailyHistoryLog[]>('sb_daily_history', INITIAL_DAILY_HISTORY)
+  );
+
+  // Keep daily history updated with real current task counts for today
   useEffect(() => {
-    ['sb_profile', 'sb_memories', 'sb_tasks', 'sb_goals', 'sb_projects', 'sb_reviews', 'sb_chat_history'].forEach((key) => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const dayName = new Date().toLocaleDateString('pt-BR', { weekday: 'long' });
+    const capitalizedDay = dayName.charAt(0).toUpperCase() + dayName.slice(1);
+
+    const created = tasks.length;
+    const concluidas = tasks.filter((t) => t.concluida || t.status === 'concluida').length;
+    const pendentes = tasks.filter((t) => !t.concluida && t.status !== 'cancelada' && t.status !== 'adiada').length;
+    const adiadas = tasks.filter((t) => t.status === 'adiada').length;
+    const canceladas = tasks.filter((t) => t.status === 'cancelada').length;
+    const percentualExecucao = created > 0 ? Math.round((concluidas / created) * 100) : 0;
+
+    const todayLog: DailyHistoryLog = {
+      data: todayStr,
+      diaSemana: capitalizedDay,
+      criadas: created,
+      concluidas,
+      pendentes,
+      adiadas,
+      canceladas,
+      percentualExecucao,
+    };
+
+    setDailyHistory((prev) => {
+      // Strip any old mock dates if any existed
+      const realPrev = prev.filter((log) => log.data && !['2026-08-01', '2026-08-02', '2026-08-03', '2026-08-04', '2026-08-05', '2026-08-06'].includes(log.data));
+      const exists = realPrev.some((log) => log.data === todayStr);
+      let updated: DailyHistoryLog[];
+      if (exists) {
+        updated = realPrev.map((log) => (log.data === todayStr ? todayLog : log));
+      } else {
+        updated = [...realPrev, todayLog];
+      }
+      localStorage.setItem('sb_daily_history', JSON.stringify(updated));
+      return updated;
+    });
+  }, [tasks]);
+
+  // Purge any legacy demo or Alex data stored in localStorage on mount
+  useEffect(() => {
+    ['sb_profile', 'sb_memories', 'sb_tasks', 'sb_goals', 'sb_projects', 'sb_reviews', 'sb_chat_history', 'sb_daily_history'].forEach((key) => {
       const val = localStorage.getItem(key);
-      if (val && (val.includes('Alex') || val.includes('alex'))) {
-        const cleaned = val.replace(/Alex/g, 'Wesley').replace(/alex/g, 'wesley');
-        localStorage.setItem(key, cleaned);
+      if (val) {
+        if (val.includes('Alex') || val.includes('alex')) {
+          const cleaned = val.replace(/Alex/g, 'Wesley').replace(/alex/g, 'wesley');
+          localStorage.setItem(key, cleaned);
+        }
       }
     });
   }, []);
@@ -172,9 +235,11 @@ export default function App() {
           id: `task-ai-${Date.now()}-${idx}`,
           titulo: t.titulo,
           prioridade: (t.prioridade as TaskPriority) || 'importante',
+          status: 'pendente',
           concluida: false,
           data: new Date().toISOString().split('T')[0],
           categoria: (t.categoria as MemoryCategory) || 'projetos',
+          dataCriacao: new Date().toISOString().split('T')[0],
         }));
         setTasks(newTasks);
       }
@@ -184,23 +249,75 @@ export default function App() {
   };
 
   // Task Handlers
-  const handleAddTask = (newTask: Omit<TaskItem, 'id' | 'data'>) => {
+  const handleAddTask = (newTask: Omit<TaskItem, 'id' | 'data'> & { data?: string }) => {
     const item: TaskItem = {
       ...newTask,
       id: `task-${Date.now()}`,
-      data: new Date().toISOString().split('T')[0],
+      data: newTask.data || new Date().toISOString().split('T')[0],
+      status: newTask.status || 'pendente',
+      concluida: newTask.concluida || false,
+      dataCriacao: new Date().toISOString().split('T')[0],
     };
     setTasks((prev) => [item, ...prev]);
   };
 
   const handleToggleTask = (id: string) => {
     setTasks((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, concluida: !t.concluida } : t))
+      prev.map((t) =>
+        t.id === id
+          ? {
+              ...t,
+              concluida: !t.concluida,
+              status: !t.concluida ? 'concluida' : 'pendente',
+              dataConclusao: !t.concluida ? new Date().toISOString().split('T')[0] : undefined,
+            }
+          : t
+      )
     );
   };
 
-  const handleDeleteTask = (id: string) => {
-    setTasks((prev) => prev.filter((t) => t.id !== id));
+  const handleUpdateTaskStatus = (searchTitleOrId: string, status: TaskStatus) => {
+    setTasks((prev) => {
+      if (!searchTitleOrId) return prev;
+      const lower = searchTitleOrId.toLowerCase().trim();
+      const target = prev.find(
+        (t) => t.id === searchTitleOrId || t.titulo.toLowerCase().includes(lower) || lower.includes(t.titulo.toLowerCase())
+      );
+      if (!target) return prev;
+      return prev.map((t) =>
+        t.id === target.id
+          ? {
+              ...t,
+              status,
+              concluida: status === 'concluida',
+              dataConclusao: status === 'concluida' ? new Date().toISOString().split('T')[0] : t.dataConclusao,
+            }
+          : t
+      );
+    });
+  };
+
+  const handleRescheduleTask = (searchTitleOrId: string, newDate: string) => {
+    setTasks((prev) => {
+      if (!searchTitleOrId) return prev;
+      const lower = searchTitleOrId.toLowerCase().trim();
+      const target = prev.find(
+        (t) => t.id === searchTitleOrId || t.titulo.toLowerCase().includes(lower) || lower.includes(t.titulo.toLowerCase())
+      );
+      if (!target) return prev;
+      return prev.map((t) =>
+        t.id === target.id ? { ...t, data: newDate, status: 'adiada' } : t
+      );
+    });
+  };
+
+  const handleDeleteTask = (idOrTitle: string) => {
+    setTasks((prev) => {
+      const lower = idOrTitle.toLowerCase().trim();
+      return prev.filter(
+        (t) => t.id !== idOrTitle && !t.titulo.toLowerCase().includes(lower) && !lower.includes(t.titulo.toLowerCase())
+      );
+    });
   };
 
   const handleUpdateTaskPriority = (id: string, newPriority: TaskPriority) => {
@@ -347,6 +464,11 @@ export default function App() {
             onSaveReview={handleSaveReview}
             onOpenAIChat={handleOpenAIChat}
           />
+        ) : activeTab === 'evolucao' ? (
+          <EvolutionView
+            dailyHistory={dailyHistory}
+            onOpenAIChat={handleOpenAIChat}
+          />
         ) : (
           <DashboardView
             profile={profile}
@@ -356,6 +478,8 @@ export default function App() {
             projects={projects}
             onNavigate={setActiveTab}
             onToggleTask={handleToggleTask}
+            onAddTask={handleAddTask}
+            onDeleteTask={handleDeleteTask}
             onOpenQuickMemory={() => setIsQuickMemoryOpen(true)}
             onOpenAIChat={handleOpenAIChat}
           />
@@ -370,8 +494,14 @@ export default function App() {
         memories={memories}
         goals={goals}
         tasks={tasks}
+        dailyHistory={dailyHistory}
         initialPrompt={aiInitialPrompt}
         onAddMemory={handleAddMemory}
+        onAddTask={handleAddTask}
+        onUpdateTaskStatus={handleUpdateTaskStatus}
+        onRescheduleTask={handleRescheduleTask}
+        onDeleteTask={handleDeleteTask}
+        onAddGoal={handleAddGoal}
       />
 
       {/* Quick Memory Creator Modal */}

@@ -6,6 +6,7 @@ import {
   Target,
   BookMarked,
   BarChart3,
+  TrendingUp,
   Bot,
   UserCheck,
   PlusCircle,
@@ -59,7 +60,7 @@ export const Header: React.FC<HeaderProps> = ({
                 </span>
               </div>
               <p className="text-[11px] text-slate-500 font-medium">
-                Seu copiloto estratégico pessoal <span className="text-slate-300">|</span> <span className="text-slate-600">{formattedDate}</span>
+                Secretário Pessoal Inteligente <span className="text-slate-300">|</span> <span className="text-slate-600">{formattedDate}</span>
               </p>
             </div>
           </div>
@@ -132,6 +133,18 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
 
           <button
+            onClick={() => setActiveTab('evolucao')}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
+              activeTab === 'evolucao'
+                ? 'bg-slate-900 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80'
+            }`}
+          >
+            <TrendingUp className="w-4 h-4 text-emerald-500" />
+            Evolução
+          </button>
+
+          <button
             onClick={() => setActiveTab('revisao_semanal')}
             className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
               activeTab === 'revisao_semanal'
@@ -169,7 +182,7 @@ export const Header: React.FC<HeaderProps> = ({
             className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white transition-all shadow-xs"
           >
             <Sparkles className="w-3.5 h-3.5" />
-            <span>Copiloto RAXXER</span>
+            <span>Secretário RAXXER</span>
           </button>
         </div>
       </div>

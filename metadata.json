@@ -1,6 +1,6 @@
 {
   "name": "RAXXER",
-  "description": "RAXXER — Seu copiloto estratégico pessoal. Centro de comando unificado para acompanhamento, rotina e produtividade diária.",
+  "description": "RAXXER — Secretário Pessoal Inteligente. Organização de rotina, tarefas e compromissos por conversa natural.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

@@ -12,7 +12,7 @@ import {
   Loader2,
   BookmarkPlus,
 } from 'lucide-react';
-import { AIChatMessage, GoalItem, MemoryItem, TaskItem, UserProfile } from '../types';
+import { AIChatMessage, DailyHistoryLog, GoalItem, MemoryItem, TaskItem, TaskPriority, TaskStatus, UserProfile } from '../types';
 
 interface AIChatDrawerProps {
   isOpen: boolean;
@@ -21,8 +21,14 @@ interface AIChatDrawerProps {
   memories: MemoryItem[];
   goals: GoalItem[];
   tasks: TaskItem[];
+  dailyHistory?: DailyHistoryLog[];
   initialPrompt?: string;
   onAddMemory: (memory: Omit<MemoryItem, 'id' | 'data'>) => void;
+  onAddTask?: (task: Omit<TaskItem, 'id' | 'data'> & { data?: string }) => void;
+  onUpdateTaskStatus?: (searchTitleOrId: string, status: TaskStatus) => void;
+  onRescheduleTask?: (searchTitleOrId: string, newDate: string) => void;
+  onDeleteTask?: (searchTitleOrId: string) => void;
+  onAddGoal?: (goal: Omit<GoalItem, 'id' | 'dataCriacao'>) => void;
 }
 
 export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
@@ -32,19 +38,26 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
   memories,
   goals,
   tasks,
+  dailyHistory,
   initialPrompt,
   onAddMemory,
+  onAddTask,
+  onUpdateTaskStatus,
+  onRescheduleTask,
+  onDeleteTask,
+  onAddGoal,
 }) => {
   const [messages, setMessages] = useState<AIChatMessage[]>([
     {
       id: 'welcome-1',
       sender: 'ai',
-      text: `Olá ${profile.comoSerChamado || profile.nome || 'Wesley'}! Sou o seu Copiloto Estratégico RAXXER. Como posso apoiar suas decisões nos pilares Pessoal, Profissional (INC) e Direção agora?`,
+      text: `Olá ${profile.comoSerChamado || profile.nome || 'Wesley'}! Sou seu Secretário Pessoal Inteligente. Como posso te ajudar agora? Pode me pedir para agendar compromissos, marcar tarefas como concluídas ou consultar seu histórico.`,
       timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
       suggestedActions: [
-        'Qual a coisa mais importante que preciso fazer hoje?',
-        'Como organizar meus leads e retrabalhos de hoje?',
-        'Analise o equilíbrio entre minha rotina comercial e pessoal',
+        'Como está meu dia?',
+        'Como foi minha semana?',
+        'Raxxer, amanhã preciso pagar a conta de luz.',
+        'Raxxer, já paguei a conta de luz.',
       ],
     },
   ]);
@@ -89,6 +102,7 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
           memories,
           goals,
           tasks,
+          dailyHistory,
           chatHistory: messages.slice(-6),
         }),
       });
@@ -97,15 +111,73 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
 
       const data = await response.json();
 
+      // Process Actions returned by Secretário RAXXER
+      if (Array.isArray(data.actions) && data.actions.length > 0) {
+        data.actions.forEach((act: any) => {
+          if (!act || !act.type || !act.payload) return;
+          const p = act.payload;
+
+          switch (act.type) {
+            case 'create_task':
+              onAddTask?.({
+                titulo: p.titulo || p.descricao || 'Nova Tarefa',
+                prioridade: (p.prioridade as TaskPriority) || 'urgente',
+                status: (p.status as TaskStatus) || 'pendente',
+                categoria: p.categoria || 'geral',
+                notas: p.horario ? `Horário: ${p.horario}` : p.descricao || undefined,
+                concluida: false,
+                data: p.data || new Date().toISOString().split('T')[0],
+              });
+              break;
+
+            case 'update_task_status':
+              onUpdateTaskStatus?.(
+                p.searchTitle || p.id || p.titulo || '',
+                (p.status as TaskStatus) || 'concluida'
+              );
+              break;
+
+            case 'reschedule_task':
+              if (p.data) {
+                onRescheduleTask?.(p.searchTitle || p.id || p.titulo || '', p.data);
+              }
+              break;
+
+            case 'delete_task':
+              onDeleteTask?.(p.searchTitle || p.id || p.titulo || '');
+              break;
+
+            case 'add_memory':
+              onAddMemory({
+                categoria: p.categoria || 'identidade',
+                titulo: p.titulo || 'Registro do Secretário',
+                conteudo: p.conteudo || p.descricao || p.titulo || '',
+                importancia: p.importancia || 'media',
+              });
+              break;
+
+            case 'create_goal':
+              onAddGoal?.({
+                objetivo: p.objetivo || p.titulo || 'Novo Objetivo',
+                prazo: p.prazo || '2026-12-31',
+                progresso: 0,
+                proximosPassos: p.proximosPassos || [],
+                categoria: p.categoria || 'metas',
+                status: 'em_andamento',
+              });
+              break;
+
+            default:
+              break;
+          }
+        });
+      }
+
       const aiMsg: AIChatMessage = {
         id: `ai-${Date.now()}`,
         sender: 'ai',
-        text: data.text || 'Entendido. Recomendo focar na sua prioridade principal de hoje.',
+        text: data.text || 'Anotei.',
         timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-        suggestedActions: [
-          'Ver minhas tarefas de hoje',
-          'Qual a prioridade agora?',
-        ],
       };
 
       setMessages((prev) => [...prev, aiMsg]);
@@ -135,8 +207,8 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
               <Bot className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-sm font-extrabold text-slate-900">Copiloto RAXXER</h3>
-              <p className="text-[11px] text-indigo-600 font-semibold">Seu copiloto estratégico pessoal</p>
+              <h3 className="text-sm font-extrabold text-slate-900">Secretário RAXXER</h3>
+              <p className="text-[11px] text-indigo-600 font-semibold">Seu Secretário Pessoal Inteligente</p>
             </div>
           </div>
           <button
@@ -244,7 +316,7 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
             type="text"
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
-            placeholder="Pergunte ao seu Copiloto RAXXER..."
+            placeholder="Fale com seu Secretário RAXXER..."
             disabled={isLoading}
             className="flex-1 px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs focus:outline-none focus:border-indigo-500 placeholder:text-slate-400"
           />

@@ -1,3 +1,14 @@
+export interface DailyHistoryLog {
+  data: string; // YYYY-MM-DD
+  diaSemana: string;
+  criadas: number;
+  concluidas: number;
+  pendentes: number;
+  adiadas: number;
+  canceladas: number;
+  percentualExecucao: number;
+}
+
 export type MemoryCategory =
   | 'identidade'
   | 'metas'
@@ -22,15 +33,23 @@ export interface MemoryItem {
   origin?: 'interview' | 'auto_extracted' | 'manual';
 }
 
-export type TaskPriority = 'urgente' | 'importante' | 'pode_esperar';
+export type TaskPriority = 'alta' | 'media' | 'baixa' | 'urgente' | 'importante' | 'pode_esperar';
+export type TaskStatus = 'pendente' | 'em_andamento' | 'concluida' | 'adiada' | 'cancelada';
 
 export interface TaskItem {
   id: string;
   titulo: string;
+  descricao?: string;
   prioridade: TaskPriority;
+  status: TaskStatus;
   concluida: boolean;
-  data: string;
-  categoria?: MemoryCategory;
+  data: string; // YYYY-MM-DD
+  horario?: string; // HH:mm
+  categoria?: string;
+  projetoRelacionado?: string;
+  dataCriacao: string;
+  dataConclusao?: string;
+  observacoes?: string;
   notas?: string;
 }
 
@@ -90,11 +109,25 @@ export interface UserProfile {
   currentInterviewStep: number;
 }
 
+export type AIChatActionType =
+  | 'create_task'
+  | 'update_task_status'
+  | 'reschedule_task'
+  | 'delete_task'
+  | 'create_goal'
+  | 'add_memory';
+
+export interface AIChatAction {
+  type: AIChatActionType;
+  payload: any;
+}
+
 export interface AIChatMessage {
   id: string;
   sender: 'user' | 'ai';
   text: string;
   timestamp: string;
+  actions?: AIChatAction[];
   suggestedActions?: string[];
   extractedMemories?: Partial<MemoryItem>[];
 }
