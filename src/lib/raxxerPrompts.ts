@@ -62,6 +62,10 @@ export async function callGeminiREST({
   responseSchema,
   model = 'gemini-2.5-flash',
 }: CallGeminiRESTOptions): Promise<string> {
+  if (!apiKey || apiKey.trim() === '') {
+    throw new Error('Chave GEMINI_API_KEY não informada ou vazia.');
+  }
+
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
   const body: any = {
@@ -99,11 +103,21 @@ export async function callGeminiREST({
 
   if (!res.ok) {
     const errorText = await res.text();
-    throw new Error(`Gemini API Error (${res.status}): ${errorText}`);
+    let errorDetail = errorText;
+    try {
+      const parsed = JSON.parse(errorText);
+      if (parsed.error?.message) {
+        errorDetail = parsed.error.message;
+      }
+    } catch {}
+    throw new Error(`Google Gemini API (${res.status}): ${errorDetail}`);
   }
 
   const data = (await res.json()) as any;
   const candidateText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  if (!candidateText && data?.promptFeedback?.blockReason) {
+    throw new Error(`Resposta bloqueada pela política de segurança da IA: ${data.promptFeedback.blockReason}`);
+  }
   return candidateText;
 }
 
