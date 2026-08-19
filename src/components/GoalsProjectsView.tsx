@@ -112,13 +112,17 @@ export const GoalsProjectsView: React.FC<GoalsProjectsViewProps> = ({
           message: `Analise a minha meta: "${goal.objetivo}". Progresso atual: ${goal.progresso}%. Prazo: ${goal.prazo}. Próximos passos: ${goal.proximosPassos.join(', ')}. Responda especificamente: "Você está avançando?" e me dê 2 ajustes táticos.`,
         }),
       });
+      if (!response.ok) {
+        const errJson = await response.json().catch(() => null);
+        throw new Error(errJson?.error || `Erro ${response.status}`);
+      }
       const data = await response.json();
       setAiGoalAdvice({ goalId: goal.id, text: data.text });
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
       setAiGoalAdvice({
         goalId: goal.id,
-        text: 'Você está no caminho certo. Concentre-se em concluir o primeiro passo prático da lista.',
+        text: `Não foi possível obter a análise da IA: ${err?.message || 'Verifique a configuração da GEMINI_API_KEY.'}`,
       });
     } finally {
       setLoadingGoalId(null);

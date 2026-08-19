@@ -73,11 +73,15 @@ export const MyDayView: React.FC<MyDayViewProps> = ({
           tasks,
         }),
       });
+      if (!response.ok) {
+        const errJson = await response.json().catch(() => null);
+        throw new Error(errJson?.error || `Erro ${response.status}`);
+      }
       const data = await response.json();
       setDayReview(data.text);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error reviewing day:', err);
-      setDayReview('Excelente trabalho ao acompanhar suas tarefas hoje, Wesley! Mantenha o foco.');
+      setDayReview(`Não foi possível gerar a revisão: ${err?.message || 'Verifique a configuração da GEMINI_API_KEY.'}`);
     } finally {
       setIsReviewing(false);
     }

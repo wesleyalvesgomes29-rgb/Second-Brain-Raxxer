@@ -107,7 +107,11 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
         }),
       });
 
-      if (!response.ok) throw new Error('Falha no servidor');
+      if (!response.ok) {
+        const errJson = await response.json().catch(() => null);
+        const errorMessage = errJson?.error || `Falha na requisição (${response.status})`;
+        throw new Error(errorMessage);
+      }
 
       const data = await response.json();
 
@@ -182,13 +186,14 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
 
       setMessages((prev) => [...prev, aiMsg]);
     } catch (err: any) {
-      console.error(err);
+      console.error('RAXXER Chat Error:', err);
+      const errorDetail = err?.message || 'Falha de comunicação.';
       setMessages((prev) => [
         ...prev,
         {
           id: `ai-err-${Date.now()}`,
           sender: 'ai',
-          text: 'Entendido! Como conselho direto: foque na tarefa de maior impacto da sua lista hoje e conclua-a antes de iniciar novos itens.',
+          text: `Não consegui conectar à inteligência do RAXXER. Verifique a configuração da GEMINI_API_KEY.\n\nDetalhes do erro: ${errorDetail}`,
           timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
         },
       ]);
