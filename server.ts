@@ -48,7 +48,7 @@ app.post('/api/ai/onboarding-summary', async (req, res) => {
     const prompt = buildOnboardingPrompt(profileAnswers || {});
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3.7-flash',
       contents: prompt,
       config: {
         systemInstruction: SECOND_BRAIN_SYSTEM_INSTRUCTION,
@@ -74,7 +74,7 @@ app.post('/api/ai/priorities', async (req, res) => {
     const prompt = buildPrioritiesPrompt({ profile, tasks, goals, memories });
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3.7-flash',
       contents: prompt,
       config: {
         systemInstruction: SECOND_BRAIN_SYSTEM_INSTRUCTION,
@@ -97,7 +97,7 @@ app.post('/api/ai/extract-memory', async (req, res) => {
     const prompt = buildExtractMemoryPrompt(inputStatement || '');
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3.7-flash',
       contents: prompt,
       config: {
         systemInstruction: SECOND_BRAIN_SYSTEM_INSTRUCTION,
@@ -129,7 +129,7 @@ app.post('/api/ai/weekly-review', async (req, res) => {
     });
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3.7-flash',
       contents: prompt,
       config: {
         systemInstruction: SECOND_BRAIN_SYSTEM_INSTRUCTION,
@@ -163,7 +163,7 @@ app.post('/api/ai/chat', async (req, res) => {
     });
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3.7-flash',
       contents: contextPrompt,
       config: {
         systemInstruction: SECOND_BRAIN_SYSTEM_INSTRUCTION,
